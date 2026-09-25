@@ -1,0 +1,205 @@
+import { CalendarClock, CheckCheck, Eye, Send, TriangleAlert, Users } from "lucide-react";
+import Link from "next/link";
+import { ActionButton } from "@/components/action-button";
+import { Badge, buttonClass, Card, CardHeader, EmptyState, PageHeader, Stat, StatusBadge } from "@/components/ui";
+import { db } from "@/lib/db";
+import { APP_TZ, daysAgo, fmtDate, fmtNumber, pct } from "@/lib/format";
+import { formatPhone } from "@/lib/phone";
+import { estimateDuration, formatMinutes } from "@/lib/schedule";
+import { cancelRun, runDispatcherNow } from "./actions/campaigns";
+import { DailyChart } from "./daily-chart";
+
+export const dynamic = "force-dynamic";
+
+export default async function Overview() {
+  const weekAgo = daysAgo(7);
+  const since = daysAgo(13);
+
+  const [customers, optedOut, week, activeRuns, upcoming, recent, daily] = await Promise.all([
+    db.customer.count({ where: { optedOut: false } }),
+    db.customer.count({ where: { optedOut: true } }),
+    db.message.groupBy({ by: ["status"], where: { createdAt: { gte: weekAgo }, status: { notIn: ["QUEUED", "SKIPPED"] } }, _count: true }),
+    db.campaignRun.findMany({
+      where: { status: { in: ["RUNNING", "WAITING_TEMPLATE"] } },
+      include: { campaign: true },
+      orderBy: { startedAt: "desc" },
+    }),
+    db.campaign.findMany({
+      where: { active: true, nextRunAt: { not: null } },
+      include: { template: { select: { name: true, status: true } } },
+      orderBy: { nextRunAt: "asc" },
+      take: 5,
+    }),
+    db.message.findMany({
+      where: { status: { not: "QUEUED" } },
+      include: { customer: true },
+      orderBy: { createdAt: "desc" },
+      take: 6,
+    }),
+    db.$queryRaw<{ day: string; status: string; n: bigint }[]>`
+      SELECT to_char(("createdAt" AT TIME ZONE 'UTC') AT TIME ZONE ${APP_TZ}, 'YYYY-MM-DD') AS day, status::text AS status, count(*) AS n
+      FROM "Message" WHERE "createdAt" >= ${since} AND status NOT IN ('QUEUED', 'SKIPPED')
+      GROUP BY 1, 2`,
+  ]);
+
+  const count = (s: string) => week.find((w) => w.status === s)?._count ?? 0;
+  const read = count("READ");
+  const delivered = count("DELIVERED") + read;
+  const failed = count("FAILED");
+  const total = delivered + count("SENT") + failed;
+
+  const runProgress = activeRuns.length
+    ? await db.message.groupBy({ by: ["runId", "status"], where: { runId: { in: activeRuns.map((r) => r.id) } }, _count: true })
+    : [];
+
+  return (
+    <>
+      <PageHeader
+        title="Overview"
+        description="How your WhatsApp campaigns performed over the last 7 days."
+        actions={
+          <>
+            <ActionButton action={runDispatcherNow} size="md" title="Process due campaigns and batches now">
+              <Send className="size-4" /> Run scheduler now
+            </ActionButton>
+            <Link href="/dashboard/campaigns/new" className={buttonClass("primary")}>
+              <CalendarClock className="size-4" /> New campaign
+            </Link>
+          </>
+        }
+      />
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <Stat label="Active customers" value={fmtNumber(customers)} sub={`${fmtNumber(optedOut)} opted out`} icon={<Users className="size-4" />} />
+        <Stat
+          label="Messages sent · 7 days"
+          value={fmtNumber(total)}
+          sub={`${fmtNumber(failed)} failed`}
+          icon={<Send className="size-4" />}
+          accent="bg-sky-50 text-sky-700"
+        />
+        <Stat label="Delivery rate" value={`${pct(delivered, total)}%`} sub={`${fmtNumber(delivered)} delivered`} icon={<CheckCheck className="size-4" />} />
+        <Stat
+          label="Read rate"
+          value={`${pct(read, delivered)}%`}
+          sub={`${fmtNumber(read)} of delivered were read`}
+          icon={<Eye className="size-4" />}
+          accent="bg-violet-50 text-violet-700"
+        />
+      </div>
+
+      {activeRuns.length > 0 && (
+        <Card className="mt-6">
+          <CardHeader title="Sending now" description="Campaigns delivering in batches. Batch size or interval changes apply from the next batch." />
+          <ul className="divide-y divide-line">
+            {activeRuns.map((r) => {
+              const by = (s: string) => runProgress.find((p) => p.runId === r.id && p.status === s)?._count ?? 0;
+              const queued = by("QUEUED");
+              const done = r.total - queued;
+              const eta = estimateDuration(queued, r.campaign.batchSize, r.campaign.intervalMinutes);
+              return (
+                <li key={r.id} className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Link href={`/dashboard/campaigns/${r.campaignId}`} className="font-medium hover:underline">
+                        {r.campaign.name}
+                      </Link>
+                      <StatusBadge status={r.status} />
+                    </div>
+                    <div className="mt-2 h-2 overflow-hidden rounded-full bg-canvas">
+                      <div className="h-full rounded-full bg-brand transition-all" style={{ width: `${pct(done, r.total)}%` }} />
+                    </div>
+                    <p className="tabular mt-1.5 text-xs text-muted">
+                      {fmtNumber(done)} of {fmtNumber(r.total)} processed · {by("FAILED")} failed ·{" "}
+                      {queued
+                        ? `${r.campaign.batchSize} every ${r.campaign.intervalMinutes} min, about ${formatMinutes(eta)} left · next batch ${fmtDate(r.nextBatchAt, "h:mm a")}`
+                        : "finishing"}
+                    </p>
+                  </div>
+                  <ActionButton action={cancelRun.bind(null, r.id)} variant="danger" confirm="Stop this run? Queued messages will not be sent.">
+                    Stop
+                  </ActionButton>
+                </li>
+              );
+            })}
+          </ul>
+        </Card>
+      )}
+
+      <div className="mt-6 grid gap-6 xl:grid-cols-[1.6fr_1fr]">
+        <Card>
+          <CardHeader title="Messages per day" description="Last 14 days, by latest status" />
+          <DailyChart rows={daily.map((d) => ({ day: d.day, status: d.status, n: Number(d.n) }))} since={since} />
+        </Card>
+
+        <Card>
+          <CardHeader
+            title="Coming up"
+            action={
+              <Link href="/dashboard/campaigns" className="text-xs font-medium text-brand-deep hover:underline">
+                All campaigns
+              </Link>
+            }
+          />
+          {upcoming.length ? (
+            <ul className="divide-y divide-line">
+              {upcoming.map((c) => (
+                <li key={c.id} className="flex items-center gap-3 px-5 py-3.5">
+                  <div className="grid w-12 shrink-0 place-items-center rounded-lg bg-canvas py-1.5 text-center">
+                    <span className="text-[10px] font-medium uppercase text-muted">{fmtDate(c.nextRunAt, "EEE")}</span>
+                    <span className="tabular text-sm font-semibold">{fmtDate(c.nextRunAt, "d")}</span>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <Link href={`/dashboard/campaigns/${c.id}`} className="block truncate text-sm font-medium hover:underline">
+                      {c.name}
+                    </Link>
+                    <p className="truncate text-xs text-muted">
+                      {fmtDate(c.nextRunAt, "h:mm a")} · {c.template.name}
+                    </p>
+                  </div>
+                  {c.template.status !== "APPROVED" && <Badge tone="amber">Template not approved</Badge>}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <EmptyState icon={<CalendarClock className="size-5" />} title="Nothing scheduled">
+              Create a weekly campaign to start sending automatically.
+            </EmptyState>
+          )}
+        </Card>
+      </div>
+
+      <Card className="mt-6">
+        <CardHeader
+          title="Latest messages"
+          action={
+            <Link href="/dashboard/messages" className="text-xs font-medium text-brand-deep hover:underline">
+              Open log
+            </Link>
+          }
+        />
+        {recent.length ? (
+          <ul className="divide-y divide-line">
+            {recent.map((m) => (
+              <li key={m.id} className="flex items-center gap-4 px-5 py-3 text-sm">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium">
+                    {m.customer.name} <span className="font-normal text-muted">{formatPhone(m.customer.phone)}</span>
+                  </p>
+                  <p className="truncate text-xs text-muted">{m.body ?? m.templateName}</p>
+                </div>
+                {m.status === "FAILED" && <TriangleAlert className="size-4 text-rose-500" />}
+                <StatusBadge status={m.status} />
+                <span className="hidden w-32 text-right text-xs text-muted sm:block">{fmtDate(m.sentAt ?? m.createdAt, "d MMM, h:mm a")}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <EmptyState icon={<Send className="size-5" />} title="No messages yet">
+            Sent messages will appear here with their delivery status.
+          </EmptyState>
+        )}
+      </Card>
+    </>
+  );
+}

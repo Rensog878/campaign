@@ -1,26 +1,59 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@theme {
+  --color-ink: #0f1a17;
+  --color-ink-2: #3d4a45;
+  --color-muted: #6b7773;
+  --color-line: #e4e8e5;
+  --color-canvas: #f5f6f3;
+  --color-panel: #ffffff;
+  --color-brand: #0f9d58;
+  --color-brand-deep: #0a6b3d;
+  --color-brand-soft: #e3f5ea;
+  --color-night: #0c1714;
+  --color-chat: #efeae2;
+  --color-bubble: #ffffff;
+  --shadow-card: 0 1px 2px rgb(15 26 23 / 0.04), 0 4px 16px -6px rgb(15 26 23 / 0.08);
+  --shadow-pop: 0 12px 40px -12px rgb(15 26 23 / 0.35);
+  --animate-rise: rise 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-toast: toast 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes toast {
+    from { opacity: 0; transform: translateY(12px) scale(0.98); }
+    to { opacity: 1; transform: none; }
   }
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-feature-settings: "ss01", "cv11";
+}
+
+::selection { background: var(--color-brand-soft); color: var(--color-brand-deep); }
+
+.tabular { font-variant-numeric: tabular-nums; }
+
+/* WhatsApp chat wallpaper */
+.chat-wall {
+  background-color: var(--color-chat);
+  background-image: radial-gradient(rgb(0 0 0 / 0.045) 1px, transparent 1px);
+  background-size: 14px 14px;
+}
+
+.field {
+  @apply w-full rounded-lg border border-line bg-white px-3 py-2 text-sm text-ink outline-none transition
+    placeholder:text-muted/70 focus:border-brand focus:ring-4 focus:ring-brand/12 disabled:bg-canvas disabled:text-muted;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
 }

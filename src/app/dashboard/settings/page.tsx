@@ -1,0 +1,76 @@
+import { CheckCircle2, Circle } from "lucide-react";
+import type { Metadata } from "next";
+import { headers } from "next/headers";
+import { Card, CardHeader, PageHeader } from "@/components/ui";
+import { cn } from "@/lib/cn";
+import { waConfig } from "@/lib/whatsapp";
+import { PasswordForm } from "./password-form";
+
+export const metadata: Metadata = { title: "Settings" };
+export const dynamic = "force-dynamic";
+
+function Check({ ok, label, hint }: { ok: boolean; label: string; hint: string }) {
+  return (
+    <li className="flex gap-3 px-5 py-3">
+      {ok ? <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-brand" /> : <Circle className="mt-0.5 size-4 shrink-0 text-line" />}
+      <div>
+        <p className={cn("text-sm font-medium", !ok && "text-ink-2")}>{label}</p>
+        <p className="text-xs text-muted">{hint}</p>
+      </div>
+    </li>
+  );
+}
+
+function Copyable({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="mb-1 text-xs font-medium text-ink-2">{label}</p>
+      <code className="block overflow-x-auto whitespace-nowrap rounded-lg bg-canvas px-3 py-2 font-mono text-xs">{value}</code>
+    </div>
+  );
+}
+
+export default async function SettingsPage() {
+  const cfg = waConfig();
+  const h = await headers();
+  const origin = `${h.get("x-forwarded-proto") ?? "https"}://${h.get("host")}`;
+
+  return (
+    <>
+      <PageHeader title="Settings" description="WhatsApp connection, scheduler and your account." />
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader title="WhatsApp Cloud API" description={cfg.live ? "Connected. Messages are sent through Meta." : "Not connected. The portal is in demo mode and sends are simulated."} />
+          <ul className="divide-y divide-line">
+            <Check ok={!!cfg.token} label="Access token" hint="WHATSAPP_TOKEN: a permanent System User token from Meta Business settings." />
+            <Check ok={!!cfg.phoneNumberId} label="Phone number ID" hint="WHATSAPP_PHONE_NUMBER_ID from WhatsApp Manager → API setup." />
+            <Check ok={!!cfg.wabaId} label="WhatsApp Business Account ID" hint="WHATSAPP_BUSINESS_ACCOUNT_ID, used to create and sync templates." />
+            <Check ok={!!cfg.appId} label="Meta App ID" hint="META_APP_ID, needed only for image headers." />
+            <Check ok={!!process.env.META_APP_SECRET} label="App secret" hint="META_APP_SECRET, used to verify that webhooks really come from Meta." />
+            <Check ok={!!process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN} label="Webhook verify token" hint="WHATSAPP_WEBHOOK_VERIFY_TOKEN: any secret string, entered in Meta too." />
+          </ul>
+          <div className="space-y-3 border-t border-line p-5">
+            <Copyable label="Webhook callback URL (subscribe to messages and message_template_status_update)" value={`${origin}/api/webhook`} />
+          </div>
+        </Card>
+
+        <div className="space-y-6">
+          <Card>
+            <CardHeader title="Scheduler" description="Something must call this URL every 5 minutes to start campaigns and send batches." />
+            <div className="space-y-3 p-5">
+              <Copyable label="Cron URL" value={`${origin}/api/cron?key=•••CRON_SECRET•••`} />
+              <p className="text-xs text-muted">
+                {process.env.CRON_SECRET ? "CRON_SECRET is set." : "Set CRON_SECRET first."} On Vercel Pro, add a cron to <code>vercel.json</code>. On the free Hobby plan, use a free service
+                such as cron-job.org with the URL above. The scheduler can also be run from the Overview page.
+              </p>
+            </div>
+          </Card>
+          <Card>
+            <CardHeader title="Change password" />
+            <PasswordForm />
+          </Card>
+        </div>
+      </div>
+    </>
+  );
+}
