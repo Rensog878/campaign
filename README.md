@@ -70,6 +70,28 @@ How it behaves:
   linked again. Nothing is marked failed.
 - Delivered and read receipts and STOP replies arrive through a webhook the portal sets up when you click Link phone.
 
+## Android app (Capacitor)
+
+`mobile/` is a native Android shell that opens the live portal in Android's WebView (not Chrome), so
+Chrome settings like "Desktop site" never affect it, and every deploy reaches the app without a rebuild.
+The app only needs rebuilding to change its name, icon, portal URL or native settings.
+
+Requirements: JDK 21 and the Android SDK (platform 36, build-tools 36). Android Studio is optional.
+
+```bash
+cd mobile
+npm install
+npm run icons          # regenerate launcher icons and splash from resources/
+npm run sync           # copy capacitor.config.ts into the Android project
+npm run apk:release    # → android/app/build/outputs/apk/release/app-release.apk
+npm run aab:release    # → android/app/build/outputs/bundle/release/app-release.aab (Play Store)
+```
+
+Release signing reads `mobile/keys/keystore.properties` and `mobile/keys/campaigns-release.jks`, which are
+**not in git**. Back them up somewhere safe: every future update must be signed with the same key, or phones
+will refuse to install it over the existing app. Increase `versionCode` in `android/app/build.gradle` for
+each new release.
+
 ## Good to know
 
 - Marketing messages cost money per message (charged by Meta), and Meta may limit how many marketing messages one person receives. Two per week is reasonable.
