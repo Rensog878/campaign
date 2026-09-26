@@ -1,10 +1,11 @@
 "use client";
 
-import { FileUp, Loader2, UserPlus, X } from "lucide-react";
+import { Ban, FileUp, Loader2, MoreHorizontal, Trash2, UserCheck, UserPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toastResult } from "@/components/toast";
-import { Button, Card, Label } from "@/components/ui";
+import { Sheet } from "@/components/sheet";
+import { Button, Label } from "@/components/ui";
 import { importCustomers, saveCustomer } from "../actions/customers";
 
 export function CustomerTools() {
@@ -17,17 +18,9 @@ export function CustomerTools() {
       <Button onClick={() => setOpen(open === "add" ? null : "add")}>
         <UserPlus className="size-4" /> Add customer
       </Button>
-      {open && (
-        <div className="fixed inset-0 z-40 grid place-items-center bg-night/40 p-4 backdrop-blur-sm" onClick={() => setOpen(null)}>
-          <Card className="w-full max-w-md animate-rise p-6" onClick={(e) => e.stopPropagation()}>
-            <div className="mb-5 flex items-center justify-between">
-              <h2 className="font-semibold">{open === "add" ? "Add customer" : "Import customers"}</h2>
-              <button onClick={() => setOpen(null)} className="text-muted hover:text-ink" aria-label="Close"><X className="size-4" /></button>
-            </div>
-            {open === "add" ? <AddForm done={() => setOpen(null)} /> : <ImportForm done={() => setOpen(null)} />}
-          </Card>
-        </div>
-      )}
+      <Sheet open={open !== null} onClose={() => setOpen(null)} title={open === "add" ? "Add customer" : "Import customers"}>
+        {open === "add" ? <AddForm done={() => setOpen(null)} /> : <ImportForm done={() => setOpen(null)} />}
+      </Sheet>
     </>
   );
 }
@@ -48,8 +41,8 @@ function AddForm({ done }: { done: () => void }) {
         });
       }}
     >
-      <div><Label htmlFor="n">Name</Label><input id="n" className="field" required value={v.name} onChange={(e) => setV({ ...v, name: e.target.value })} /></div>
-      <div><Label htmlFor="p" hint="10-digit numbers get +91">WhatsApp number</Label><input id="p" className="field" required placeholder="+91 98765 43210" value={v.phone} onChange={(e) => setV({ ...v, phone: e.target.value })} /></div>
+      <div><Label htmlFor="n">Name</Label><input id="n" autoComplete="name" autoCapitalize="words" className="field" required value={v.name} onChange={(e) => setV({ ...v, name: e.target.value })} /></div>
+      <div><Label htmlFor="p" hint="10-digit numbers get +91">WhatsApp number</Label><input id="p" type="tel" inputMode="tel" autoComplete="tel" className="field" required placeholder="+91 98765 43210" value={v.phone} onChange={(e) => setV({ ...v, phone: e.target.value })} /></div>
       <div><Label htmlFor="t" hint="comma separated, optional">Tags</Label><input id="t" className="field" placeholder="vip, chennai" value={v.tags} onChange={(e) => setV({ ...v, tags: e.target.value })} /></div>
       <Button className="w-full" disabled={pending}>{pending ? <Loader2 className="size-4 animate-spin" /> : "Add customer"}</Button>
     </form>
@@ -86,5 +79,43 @@ function ImportForm({ done }: { done: () => void }) {
       </p>
       <Button className="w-full" disabled={pending || !file}>{pending ? <Loader2 className="size-4 animate-spin" /> : "Import"}</Button>
     </form>
+  );
+}
+
+type Result = { ok: boolean; message?: string; errors?: string[] };
+
+/** Per-customer actions on phones, opened from a "⋯" button. */
+export function CustomerMenu({ name, optedOut, toggle, remove }: { name: string; optedOut: boolean; toggle: () => Promise<Result>; remove: () => Promise<Result> }) {
+  const [open, setOpen] = useState(false);
+  const [pending, start] = useTransition();
+  const router = useRouter();
+  const run = (fn: () => Promise<Result>) =>
+    start(async () => {
+      toastResult(await fn());
+      setOpen(false);
+      router.refresh();
+    });
+  return (
+    <>
+      <button onClick={() => setOpen(true)} aria-label={`Actions for ${name}`} className="-mr-2 grid size-11 shrink-0 place-items-center rounded-full text-muted active:bg-canvas">
+        <MoreHorizontal className="size-5" />
+      </button>
+      <Sheet open={open} onClose={() => setOpen(false)} title={name}>
+        <div className="space-y-2">
+          <Button variant="secondary" className="w-full justify-start" disabled={pending} onClick={() => run(toggle)}>
+            {optedOut ? <UserCheck className="size-4" /> : <Ban className="size-4" />}
+            {optedOut ? "Opt back in to campaigns" : "Opt out of campaigns"}
+          </Button>
+          <Button
+            variant="danger"
+            className="w-full justify-start"
+            disabled={pending}
+            onClick={() => window.confirm(`Delete ${name} and their message history?`) && run(remove)}
+          >
+            {pending ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />} Delete customer
+          </Button>
+        </div>
+      </Sheet>
+    </>
   );
 }

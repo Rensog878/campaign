@@ -27,7 +27,7 @@ export function Toaster() {
     return () => window.removeEventListener(EVENT, on);
   }, []);
   return (
-    <div aria-live="polite" className="pointer-events-none fixed inset-x-0 bottom-4 z-50 flex flex-col items-center gap-2 px-4 sm:items-end sm:px-6">
+    <div aria-live="polite" className="pointer-events-none fixed inset-x-0 top-[calc(0.75rem+env(safe-area-inset-top))] z-[60] flex flex-col items-center gap-2 px-4 sm:items-end sm:px-6 lg:bottom-4 lg:top-auto">
       {items.map((t) => (
         <div key={t.id} className="pointer-events-auto flex w-full max-w-sm animate-toast gap-3 rounded-xl bg-night px-4 py-3 text-sm text-white shadow-pop">
           {t.ok ? <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-400" /> : <XCircle className="mt-0.5 size-4 shrink-0 text-rose-400" />}

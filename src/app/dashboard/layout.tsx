@@ -2,7 +2,7 @@ import { LogOut, MessageCircle } from "lucide-react";
 import { requireUser } from "@/lib/session";
 import { getSettings, isSimulated } from "@/lib/provider";
 import { logout } from "../login/actions";
-import { MobileNav, SideNav } from "./nav";
+import { BottomNav, SettingsLink, SideNav } from "./nav";
 
 export default async function DashboardLayout({ children }: LayoutProps<"/dashboard">) {
   const user = await requireUser();
@@ -15,8 +15,10 @@ export default async function DashboardLayout({ children }: LayoutProps<"/dashbo
     <span className="flex items-center gap-2 text-xs text-amber-300"><span className="size-2 rounded-full bg-amber-400" />Demo mode · {via} not set up</span>
   );
 
+  const live = !isSimulated(settings);
+
   return (
-    <div className="min-h-screen lg:pl-64">
+    <div className="min-h-dvh lg:pl-64">
       <aside className="fixed inset-y-0 left-0 hidden w-64 flex-col bg-night px-4 py-6 lg:flex">
         <div className="mb-8 flex items-center gap-2.5 px-2">
           <span className="grid size-9 place-items-center rounded-xl bg-brand text-white"><MessageCircle className="size-5" /></span>
@@ -42,16 +44,22 @@ export default async function DashboardLayout({ children }: LayoutProps<"/dashbo
         </div>
       </aside>
 
-      <header className="sticky top-0 z-30 space-y-3 bg-night px-4 pb-3 pt-4 lg:hidden">
-        <div className="flex items-center justify-between">
-          <span className="flex items-center gap-2 font-semibold text-white"><MessageCircle className="size-5 text-emerald-400" />Campaign Portal</span>
-          <form action={logout}><button className="text-xs text-white/60">Sign out</button></form>
+      <header className="sticky top-0 z-30 bg-night/95 pt-[env(safe-area-inset-top)] backdrop-blur-md lg:hidden">
+        <div className="flex h-14 items-center gap-3 px-4">
+          <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-brand text-white"><MessageCircle className="size-[18px]" /></span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold leading-tight text-white">Campaign Portal</p>
+            <p className={`flex items-center gap-1.5 truncate text-[11px] leading-tight ${live ? "text-emerald-300" : "text-amber-300"}`}>
+              <span className={`size-1.5 shrink-0 rounded-full ${live ? "bg-emerald-400" : "bg-amber-400"}`} />
+              {live ? `Sending via ${via}` : "Demo mode · sends simulated"}
+            </p>
+          </div>
+          <SettingsLink />
         </div>
-        {mode}
-        <MobileNav />
       </header>
 
-      <main className="mx-auto max-w-7xl animate-rise px-4 py-8 sm:px-8">{children}</main>
+      <main className="mx-auto max-w-7xl animate-rise px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-5 sm:px-8 sm:pt-8 lg:pb-10">{children}</main>
+      <BottomNav />
     </div>
   );
 }

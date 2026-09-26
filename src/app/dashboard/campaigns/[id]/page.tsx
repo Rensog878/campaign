@@ -31,7 +31,7 @@ export default async function CampaignPage({ params }: PageProps<"/dashboard/cam
 
   return (
     <>
-      <Link href="/dashboard/campaigns" className="mb-3 inline-flex items-center gap-1 text-xs text-muted hover:text-ink">
+      <Link href="/dashboard/campaigns" className="-my-2 mb-1 inline-flex items-center gap-1 py-2 text-sm text-muted hover:text-ink sm:mb-3 sm:text-xs">
         <ArrowLeft className="size-3.5" /> Campaigns
       </Link>
       <PageHeader
@@ -73,7 +73,44 @@ export default async function CampaignPage({ params }: PageProps<"/dashboard/cam
       <Card className="mt-6">
         <CardHeader title="Send history" description="The last 20 runs of this campaign." />
         {c.runs.length ? (
-          <div className="overflow-x-auto">
+          <>
+          <ul className="divide-y divide-line sm:hidden">
+            {c.runs.map((r) => {
+              const delivered = stat(r.id, "DELIVERED", "READ");
+              const read = stat(r.id, "READ");
+              const failed = stat(r.id, "FAILED");
+              const running = ["RUNNING", "WAITING_TEMPLATE", "WAITING_CONNECTION"].includes(r.status);
+              return (
+                <li key={r.id} className="px-4 py-3.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-medium">{fmtDate(r.startedAt, "EEE d MMM, h:mm a")}</p>
+                    <StatusBadge status={r.status} />
+                  </div>
+                  <dl className="tabular mt-2 grid grid-cols-4 gap-2 text-center">
+                    {[
+                      ["Sent to", fmtNumber(r.total)],
+                      ["Delivered", `${pct(delivered, r.total)}%`],
+                      ["Read", `${pct(read, r.total)}%`],
+                      ["Failed", fmtNumber(failed)],
+                    ].map(([k, v]) => (
+                      <div key={k} className="rounded-lg bg-canvas px-1 py-1.5">
+                        <dd className={`text-sm font-semibold ${k === "Failed" && failed ? "text-rose-600" : ""}`}>{v}</dd>
+                        <dt className="text-[10px] text-muted">{k}</dt>
+                      </div>
+                    ))}
+                  </dl>
+                  <div className="mt-2 flex justify-end">
+                    {running ? (
+                      <ActionButton action={cancelRun.bind(null, r.id)} variant="danger" confirm="Stop this run?">Stop sending</ActionButton>
+                    ) : (
+                      <Link href={`/dashboard/messages?campaign=${c.id}`} className="py-2 text-sm font-medium text-brand-deep">View messages →</Link>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+          <div className="hidden overflow-x-auto sm:block">
             <table className="w-full min-w-[720px] text-sm">
               <thead>
                 <tr className="border-b border-line text-left text-xs text-muted">
@@ -111,6 +148,7 @@ export default async function CampaignPage({ params }: PageProps<"/dashboard/cam
               </tbody>
             </table>
           </div>
+          </>
         ) : (
           <p className="px-5 py-6 text-sm text-muted">This campaign hasn&apos;t sent yet.</p>
         )}

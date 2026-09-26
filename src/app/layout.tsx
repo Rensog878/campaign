@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "@/components/toast";
 import "./globals.css";
@@ -10,6 +10,15 @@ export const metadata: Metadata = {
   title: { default: "WhatsApp Campaign Portal", template: "%s · Campaign Portal" },
   description: "Schedule WhatsApp campaigns, manage templates and track every message.",
   robots: { index: false, follow: false },
+  appleWebApp: { capable: true, title: "Campaigns", statusBarStyle: "black-translucent" },
+  formatDetection: { telephone: false },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover", // lets the layout use iPhone safe-area insets
+  themeColor: "#0c1714",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

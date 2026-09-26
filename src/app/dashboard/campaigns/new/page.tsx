@@ -14,7 +14,7 @@ export default async function NewCampaignPage() {
   const tomorrow = daysAgo(-1).toISOString().slice(0, 10);
   return (
     <>
-      <Link href="/dashboard/campaigns" className="mb-3 inline-flex items-center gap-1 text-xs text-muted hover:text-ink">
+      <Link href="/dashboard/campaigns" className="-my-2 mb-1 inline-flex items-center gap-1 py-2 text-sm text-muted hover:text-ink sm:mb-3 sm:text-xs">
         <ArrowLeft className="size-3.5" /> Campaigns
       </Link>
       <PageHeader title="New campaign" description="Choose what to send, when to send it and how fast." />

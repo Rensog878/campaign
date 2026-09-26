@@ -1,7 +1,9 @@
-import { CheckCircle2, Circle } from "lucide-react";
+import { CheckCircle2, Circle, LogOut } from "lucide-react";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import { Badge, Card, CardHeader, PageHeader } from "@/components/ui";
+import { Badge, buttonClass, Card, CardHeader, PageHeader } from "@/components/ui";
+import { requireUser } from "@/lib/session";
+import { logout } from "../../login/actions";
 import { cn } from "@/lib/cn";
 import { getSettings, wahaConfig } from "@/lib/provider";
 import { waConfig } from "@/lib/whatsapp";
@@ -33,6 +35,7 @@ function Copyable({ label, value }: { label: string; value: string }) {
 }
 
 export default async function SettingsPage() {
+  const user = await requireUser();
   const cfg = waConfig();
   const settings = await getSettings();
   const h = await headers();
@@ -80,8 +83,13 @@ export default async function SettingsPage() {
             </div>
           </Card>
           <Card>
-            <CardHeader title="Change password" />
+            <CardHeader title="Your account" description={`Signed in as ${user.email}`} />
             <PasswordForm />
+            <form action={logout} className="border-t border-line p-5 pt-4">
+              <button className={buttonClass("secondary") + " w-full sm:w-auto"}>
+                <LogOut className="size-4" /> Sign out
+              </button>
+            </form>
           </Card>
         </div>
       </div>

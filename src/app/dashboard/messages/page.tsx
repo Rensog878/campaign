@@ -1,6 +1,7 @@
-import { ChevronLeft, ChevronRight, Download, MessagesSquare, Search } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, Download, MessagesSquare, Search } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { AutoSelect } from "@/components/auto-select";
 import { Badge, buttonClass, Card, EmptyState, PageHeader, StatusBadge } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import { db } from "@/lib/db";
@@ -54,13 +55,13 @@ export default async function MessagesPage({ searchParams }: PageProps<"/dashboa
         }
       />
 
-      <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
+      <div className="no-scrollbar -mx-4 mb-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
         {[{ key: "", label: "All", n: allCount }, ...MESSAGE_STATUSES.map((s) => ({ key: s, label: s[0] + s.slice(1).toLowerCase(), n: byStatus.find((b) => b.status === s)?._count ?? 0 }))].map((s) => (
           <Link
             key={s.key}
             href={href(p, { status: s.key || undefined, page: undefined })}
             className={cn(
-              "flex shrink-0 items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition",
+              "flex h-9 shrink-0 items-center gap-2 rounded-full border px-3.5 text-[13px] font-medium transition active:scale-95 sm:h-auto sm:px-3 sm:py-1.5 sm:text-xs",
               (p.status ?? "") === s.key ? "border-ink bg-ink text-white" : "border-line bg-white text-ink-2 hover:border-ink/30",
             )}
           >
@@ -71,30 +72,67 @@ export default async function MessagesPage({ searchParams }: PageProps<"/dashboa
       </div>
 
       <Card>
-        <form className="flex flex-col gap-2 border-b border-line p-3 sm:flex-row">
+        <form className="grid grid-cols-2 gap-2 border-b border-line p-3 sm:flex">
           {p.status && <input type="hidden" name="status" value={p.status} />}
-          <div className="relative flex-1">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" />
-            <input name="q" defaultValue={p.q} placeholder="Search name, phone or template" className="field pl-9" />
+          <div className="relative col-span-2 flex-1">
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted" />
+            <input name="q" type="search" enterKeyHint="search" defaultValue={p.q} placeholder="Search name, phone or template" className="field pl-10" />
           </div>
-          <select name="campaign" defaultValue={p.campaign ?? ""} className="field sm:w-48">
+          <AutoSelect name="campaign" aria-label="Campaign" defaultValue={p.campaign ?? ""} className="field sm:w-48">
             <option value="">All campaigns</option>
             <option value="test">Test sends</option>
             {campaigns.map((c) => (
               <option key={c.id} value={c.id}>{c.name}</option>
             ))}
-          </select>
-          <select name="range" defaultValue={p.range ?? ""} className="field sm:w-40">
+          </AutoSelect>
+          <AutoSelect name="range" aria-label="Time range" defaultValue={p.range ?? ""} className="field sm:w-40">
             <option value="">All time</option>
             <option value="1d">Last 24 hours</option>
             <option value="7d">Last 7 days</option>
             <option value="30d">Last 30 days</option>
-          </select>
-          <button className={buttonClass("secondary")}>Filter</button>
+          </AutoSelect>
+          <div className="hidden sm:block"><button className={buttonClass("secondary")}>Filter</button></div>
         </form>
 
         {rows.length ? (
-          <div className="overflow-x-auto">
+          <>
+          {/* Phones: one tappable card per message, status always visible. */}
+          <ul className="divide-y divide-line sm:hidden">
+            {rows.map((m) => (
+              <li key={m.id}>
+                <details className="group">
+                  <summary className="flex cursor-pointer list-none gap-3 px-4 py-3.5 active:bg-canvas">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="truncate font-medium">{m.customer.name}</p>
+                        <StatusBadge status={m.status} />
+                      </div>
+                      <p className="mt-0.5 flex items-center justify-between gap-2 text-xs text-muted">
+                        <span className="truncate font-mono">{m.templateName}</span>
+                        <span className="tabular shrink-0">{fmtDate(m.sentAt ?? m.failedAt ?? m.createdAt, "d MMM, h:mm a")}</span>
+                      </p>
+                      {m.error && <p className="mt-1 line-clamp-2 text-xs text-rose-600">{m.error}</p>}
+                    </div>
+                    <ChevronDown className="mt-1 size-4 shrink-0 text-muted transition group-open:rotate-180" />
+                  </summary>
+                  <div className="space-y-3 px-4 pb-4">
+                    {m.body && <p className="whitespace-pre-wrap rounded-xl bg-chat p-3 text-[13px] leading-snug text-ink">{m.body}</p>}
+                    <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+                      <div><dt className="text-muted">Phone</dt><dd className="tabular">{formatPhone(m.customer.phone)}</dd></div>
+                      <div><dt className="text-muted">Campaign</dt><dd className="truncate">{m.run?.campaign.name ?? "Test send"}</dd></div>
+                      <div><dt className="text-muted">Delivered</dt><dd>{m.deliveredAt ? fmtDate(m.deliveredAt, "d MMM, h:mm a") : "—"}</dd></div>
+                      <div><dt className="text-muted">Read</dt><dd>{m.readAt ? fmtDate(m.readAt, "d MMM, h:mm a") : "—"}</dd></div>
+                    </dl>
+                    <div className="flex gap-1">
+                      {m.status !== "QUEUED" && <Badge tone={m.provider === "LOCAL" ? "violet" : "blue"}>{m.provider === "LOCAL" ? "Local session" : "Meta API"}</Badge>}
+                      {m.simulated && <Badge tone="amber">Demo</Badge>}
+                    </div>
+                  </div>
+                </details>
+              </li>
+            ))}
+          </ul>
+          <div className="hidden overflow-x-auto sm:block">
             <table className="w-full min-w-[820px] text-sm">
               <thead>
                 <tr className="border-b border-line text-left text-xs text-muted">
@@ -139,6 +177,7 @@ export default async function MessagesPage({ searchParams }: PageProps<"/dashboa
               </tbody>
             </table>
           </div>
+          </>
         ) : (
           <EmptyState icon={<MessagesSquare className="size-5" />} title="No messages found">
             {p.q || p.status || p.campaign || p.range ? "Try clearing the filters." : "Messages appear here as soon as a campaign or test send goes out."}
@@ -146,7 +185,7 @@ export default async function MessagesPage({ searchParams }: PageProps<"/dashboa
         )}
 
         {total > PAGE_SIZE && (
-          <div className="flex items-center justify-between border-t border-line px-4 py-3 text-xs text-muted">
+          <div className="flex items-center justify-between gap-3 border-t border-line px-4 py-3 text-xs text-muted">
             <span className="tabular">
               {fmtNumber((page - 1) * PAGE_SIZE + 1)}–{fmtNumber(Math.min(page * PAGE_SIZE, total))} of {fmtNumber(total)}
             </span>

@@ -18,7 +18,7 @@ export default async function EditTemplatePage({ params }: PageProps<"/dashboard
 
   return (
     <>
-      <Link href="/dashboard/templates" className="mb-3 inline-flex items-center gap-1 text-xs text-muted hover:text-ink">
+      <Link href="/dashboard/templates" className="-my-2 mb-1 inline-flex items-center gap-1 py-2 text-sm text-muted hover:text-ink sm:mb-3 sm:text-xs">
         <ArrowLeft className="size-3.5" /> Templates
       </Link>
       <PageHeader

@@ -41,10 +41,10 @@ export default async function CampaignsPage() {
           {campaigns.map((c) => {
             const last = c.runs[0];
             return (
-              <Card key={c.id} className={cn("p-5 transition hover:shadow-pop", !c.active && "opacity-75")}>
+              <Card key={c.id} className={cn("relative p-4 transition hover:shadow-pop active:bg-canvas/60 sm:p-5", !c.active && "opacity-75")}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <Link href={`/dashboard/campaigns/${c.id}`} className="block truncate text-base font-semibold hover:underline">{c.name}</Link>
+                    <Link href={`/dashboard/campaigns/${c.id}`} className="block truncate text-base font-semibold after:absolute after:inset-0 hover:underline">{c.name}</Link>
                     <p className="mt-0.5 truncate font-mono text-xs text-muted">{c.template.name}</p>
                   </div>
                   {c.active ? <Badge tone="green" dot>Active</Badge> : <Badge dot>Paused</Badge>}
@@ -89,7 +89,7 @@ export default async function CampaignsPage() {
                   </span>
                   <div className="flex items-center gap-2">
                     {last && ["RUNNING", "WAITING_TEMPLATE", "WAITING_CONNECTION"].includes(last.status) && <StatusBadge status={last.status} />}
-                    <ActionButton action={toggleCampaign.bind(null, c.id, !c.active)}>{c.active ? "Pause" : "Resume"}</ActionButton>
+                    <ActionButton className="relative z-10" action={toggleCampaign.bind(null, c.id, !c.active)}>{c.active ? "Pause" : "Resume"}</ActionButton>
                   </div>
                 </div>
               </Card>

@@ -1,8 +1,10 @@
 "use client";
 
-import { Bold, Braces, Italic, Loader2, Plus, Send, Strikethrough, Trash2, TriangleAlert } from "lucide-react";
+import { Bold, Braces, Eye, Italic, Loader2, Plus, Send, Strikethrough, Trash2, TriangleAlert } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState, useTransition } from "react";
+import { MobileActionBar } from "@/components/mobile-action-bar";
+import { Sheet } from "@/components/sheet";
 import { toastResult } from "@/components/toast";
 import { Badge, Button, Card, CardHeader, Label, StatusBadge } from "@/components/ui";
 import { PhoneFrame, WhatsAppBubble } from "@/components/whatsapp-preview";
@@ -64,6 +66,7 @@ export function TemplateEditor({
   const [pending, start] = useTransition();
   const [testPhone, setTestPhone] = useState("");
   const [testing, startTest] = useTransition();
+  const [previewOpen, setPreviewOpen] = useState(false);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
   const router = useRouter();
   const locked = Boolean(id);
@@ -214,7 +217,7 @@ export function TemplateEditor({
                   <Label>Header</Label>
                   <div className="mb-3 inline-flex rounded-lg bg-canvas p-1">
                     {(["NONE", "TEXT", "IMAGE"] as const).map((h) => (
-                      <button key={h} type="button" onClick={() => set({ headerType: h })} className={cn("rounded-md px-3 py-1 text-xs font-medium transition", t.headerType === h ? "bg-white text-ink shadow-sm" : "text-muted")}>
+                      <button key={h} type="button" onClick={() => set({ headerType: h })} className={cn("rounded-md px-4 py-2 text-sm font-medium transition sm:px-3 sm:py-1 sm:text-xs", t.headerType === h ? "bg-white text-ink shadow-sm" : "text-muted")}>
                         {h === "NONE" ? "None" : h === "TEXT" ? "Text" : "Image"}
                       </button>
                     ))}
@@ -236,12 +239,12 @@ export function TemplateEditor({
                         { m: "_", I: Italic, l: "Italic" },
                         { m: "~", I: Strikethrough, l: "Strikethrough" },
                       ].map(({ m, I, l }) => (
-                        <button key={l} type="button" title={l} onClick={() => wrap(m)} className="grid size-7 place-items-center rounded text-ink-2 hover:bg-white">
+                        <button key={l} type="button" title={l} onClick={() => wrap(m)} className="grid size-10 place-items-center rounded-lg text-ink-2 hover:bg-white sm:size-7 sm:rounded">
                           <I className="size-3.5" />
                         </button>
                       ))}
                       <span className="mx-1 h-4 w-px bg-line" />
-                      <button type="button" onClick={insertVariable} className="flex h-7 items-center gap-1.5 rounded px-2 text-xs font-medium text-brand-deep hover:bg-white">
+                      <button type="button" onClick={insertVariable} className="flex h-10 items-center gap-1.5 rounded-lg px-2.5 text-sm font-medium text-brand-deep hover:bg-white sm:h-7 sm:rounded sm:px-2 sm:text-xs">
                         <Braces className="size-3.5" /> Add variable
                       </button>
                     </div>
@@ -252,7 +255,7 @@ export function TemplateEditor({
                       maxLength={1024}
                       value={t.body}
                       onChange={(e) => set({ body: e.target.value })}
-                      className="block w-full resize-y px-3 py-2.5 text-sm outline-none"
+                      className="block w-full resize-y px-3.5 py-3 text-base outline-none sm:px-3 sm:py-2.5 sm:text-sm"
                       placeholder="Hi {{1}}, …"
                     />
                   </div>
@@ -326,7 +329,7 @@ export function TemplateEditor({
                       ) : (
                         <span />
                       )}
-                      <button type="button" title="Remove" onClick={() => set({ buttons: t.buttons.filter((_, j) => j !== i) })} className="grid size-8 place-items-center rounded-lg text-muted hover:bg-rose-50 hover:text-rose-600">
+                      <button type="button" title="Remove" onClick={() => set({ buttons: t.buttons.filter((_, j) => j !== i) })} className="grid size-11 place-items-center justify-self-end rounded-lg text-muted hover:bg-rose-50 hover:text-rose-600 sm:size-8">
                         <Trash2 className="size-4" />
                       </button>
                     </div>
@@ -341,11 +344,12 @@ export function TemplateEditor({
       </div>
 
       <div className="space-y-4 lg:sticky lg:top-6 lg:self-start">
-        <div className="flex items-center justify-between">
-          <p className="text-xs font-medium uppercase tracking-wider text-muted">Live preview</p>
-          {status && <StatusBadge status={status} />}
-        </div>
-        <PhoneFrame name={businessName}>
+        <div className="hidden space-y-4 lg:block">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted">Live preview</p>
+            {status && <StatusBadge status={status} />}
+          </div>
+          <PhoneFrame name={businessName}>
           <WhatsAppBubble
             header={preview.header}
             headerImage={!auth && t.headerType === "IMAGE" ? t.headerMediaUrl || null : undefined}
@@ -354,7 +358,8 @@ export function TemplateEditor({
             buttons={t.buttons}
           />
         </PhoneFrame>
-        <p className="text-center text-xs text-muted">Previewed for {SAMPLE_CUSTOMER.name}</p>
+          <p className="text-center text-xs text-muted">Previewed for {SAMPLE_CUSTOMER.name}</p>
+        </div>
 
         {errors.length > 0 && (
           <ul className="space-y-1 rounded-xl bg-amber-50 p-3 text-xs text-amber-900">
@@ -364,20 +369,20 @@ export function TemplateEditor({
           </ul>
         )}
 
-        <Button className="w-full" disabled={pending || errors.length > 0} onClick={save}>
-          {pending ? <Loader2 className="size-4 animate-spin" /> : id ? "Save and resubmit" : "Create template"}
-        </Button>
-        {id && status === "APPROVED" && (
-          <p className="text-center text-xs text-muted">Saving sends the change to Meta. Campaigns pick up the new version as soon as it&apos;s approved.</p>
-        )}
+        <div className="hidden lg:block">
+          <Button className="w-full" disabled={pending || errors.length > 0} onClick={save}>
+            {pending ? <Loader2 className="size-4 animate-spin" /> : id ? "Save changes" : "Create template"}
+          </Button>
+        </div>
 
-        {id && status === "APPROVED" && !auth && (
+        {id && !auth && (
           <Card className="p-4">
             <Label htmlFor="test">Send a test</Label>
             <div className="flex gap-2">
-              <input id="test" className="field" placeholder="+91 98765 43210" value={testPhone} onChange={(e) => setTestPhone(e.target.value)} />
+              <input id="test" type="tel" inputMode="tel" autoComplete="tel" className="field" placeholder="+91 98765 43210" value={testPhone} onChange={(e) => setTestPhone(e.target.value)} />
               <Button
                 variant="secondary"
+                aria-label="Send test"
                 disabled={testing || !testPhone}
                 onClick={() => startTest(async () => toastResult(await sendTestMessage(id, testPhone)))}
               >
@@ -387,6 +392,28 @@ export function TemplateEditor({
           </Card>
         )}
       </div>
+
+      {/* Phones: save and preview stay under the thumb instead of at the end of a long form. */}
+      <MobileActionBar>
+        <Button variant="secondary" className="flex-1" onClick={() => setPreviewOpen(true)}>
+          <Eye className="size-4" /> Preview
+        </Button>
+        <Button className="flex-[1.4]" disabled={pending || errors.length > 0} onClick={save}>
+          {pending ? <Loader2 className="size-4 animate-spin" /> : errors.length ? `Fix ${errors.length} issue${errors.length > 1 ? "s" : ""}` : id ? "Save changes" : "Create template"}
+        </Button>
+      </MobileActionBar>
+      <Sheet open={previewOpen} onClose={() => setPreviewOpen(false)} title="Preview" className="bg-canvas">
+        <PhoneFrame name={businessName}>
+          <WhatsAppBubble
+            header={preview.header}
+            headerImage={!auth && t.headerType === "IMAGE" ? t.headerMediaUrl || null : undefined}
+            body={preview.body}
+            footer={preview.footer}
+            buttons={t.buttons}
+          />
+        </PhoneFrame>
+        <p className="mt-3 text-center text-xs text-muted">Previewed for {SAMPLE_CUSTOMER.name}</p>
+      </Sheet>
     </div>
   );
 }

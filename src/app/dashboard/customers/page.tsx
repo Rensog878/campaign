@@ -2,6 +2,7 @@ import type { Prisma } from "@prisma/client";
 import { Search, Users } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { AutoSelect } from "@/components/auto-select";
 import { ActionButton } from "@/components/action-button";
 import { Badge, buttonClass, Card, EmptyState, PageHeader } from "@/components/ui";
 import { cn } from "@/lib/cn";
@@ -9,7 +10,7 @@ import { db } from "@/lib/db";
 import { fmtDate, fmtNumber } from "@/lib/format";
 import { formatPhone } from "@/lib/phone";
 import { deleteCustomer, setOptOut } from "../actions/customers";
-import { CustomerTools } from "./customer-tools";
+import { CustomerMenu, CustomerTools } from "./customer-tools";
 
 export const metadata: Metadata = { title: "Customers" };
 export const dynamic = "force-dynamic";
@@ -51,23 +52,52 @@ export default async function CustomersPage({ searchParams }: PageProps<"/dashbo
       />
 
       <Card>
-        <form className="flex flex-col gap-2 border-b border-line p-3 sm:flex-row">
-          <div className="relative flex-1">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" />
-            <input name="q" defaultValue={q} placeholder="Search name or number" className="field pl-9" />
+        <form className="flex gap-2 border-b border-line p-3">
+          <div className="relative min-w-0 flex-1">
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted" />
+            <input name="q" type="search" enterKeyHint="search" defaultValue={q} placeholder="Search name or number" className="field pl-10" />
           </div>
-          <select name="tag" defaultValue={tag} className="field sm:w-48">
+          <AutoSelect name="tag" aria-label="Filter customers" defaultValue={tag} className="field w-32 shrink-0 sm:w-48">
             <option value="">All customers</option>
             <option value="__optout">Opted out</option>
             {tags.map((t) => (
               <option key={t.tag} value={t.tag}>Tag: {t.tag}</option>
             ))}
-          </select>
-          <button className={buttonClass("secondary")}>Filter</button>
+          </AutoSelect>
+          <div className="hidden sm:block"><button className={buttonClass("secondary")}>Filter</button></div>
         </form>
 
         {rows.length ? (
-          <div className="overflow-x-auto">
+          <>
+          <ul className="divide-y divide-line sm:hidden">
+            {rows.map((c) => (
+              <li key={c.id} className="flex items-center gap-3 px-4 py-3">
+                <span className="grid size-10 shrink-0 place-items-center rounded-full bg-brand-soft text-sm font-semibold text-brand-deep">
+                  {c.name.trim().slice(0, 1).toUpperCase()}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium">{c.name}</p>
+                  <p className="tabular truncate text-xs text-muted">
+                    {formatPhone(c.phone)}
+                    {c.messages[0] && ` · ${fmtDate(c.messages[0].createdAt, "d MMM")} ${c.messages[0].status.toLowerCase()}`}
+                  </p>
+                  {(c.optedOut || c.tags.length > 0) && (
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {c.optedOut && <Badge tone="red">Opted out</Badge>}
+                      {c.tags.map((t) => <Badge key={t}>{t}</Badge>)}
+                    </div>
+                  )}
+                </div>
+                <CustomerMenu
+                  name={c.name}
+                  optedOut={c.optedOut}
+                  toggle={setOptOut.bind(null, c.id, !c.optedOut)}
+                  remove={deleteCustomer.bind(null, c.id)}
+                />
+              </li>
+            ))}
+          </ul>
+          <div className="hidden overflow-x-auto sm:block">
             <table className="w-full min-w-[720px] text-sm">
               <thead>
                 <tr className="border-b border-line text-left text-xs text-muted">
@@ -106,6 +136,7 @@ export default async function CustomersPage({ searchParams }: PageProps<"/dashbo
               </tbody>
             </table>
           </div>
+          </>
         ) : (
           <EmptyState icon={<Users className="size-5" />} title={q || tag ? "No matching customers" : "No customers yet"}>
             {q || tag ? "Try a different search." : "Import your customer list as a CSV to get started."}

@@ -98,10 +98,10 @@ export default async function Overview() {
               const done = r.total - queued;
               const eta = estimateDuration(queued, r.campaign.batchSize, r.campaign.intervalMinutes);
               return (
-                <li key={r.id} className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center">
+                <li key={r.id} className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:px-5">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <Link href={`/dashboard/campaigns/${r.campaignId}`} className="font-medium hover:underline">
+                      <Link href={`/dashboard/campaigns/${r.campaignId}`} className="-my-2 py-2 font-medium hover:underline">
                         {r.campaign.name}
                       </Link>
                       <StatusBadge status={r.status} />
@@ -136,7 +136,7 @@ export default async function Overview() {
           <CardHeader
             title="Coming up"
             action={
-              <Link href="/dashboard/campaigns" className="text-xs font-medium text-brand-deep hover:underline">
+              <Link href="/dashboard/campaigns" className="-my-2 py-2 text-sm font-medium text-brand-deep hover:underline sm:text-xs">
                 All campaigns
               </Link>
             }
@@ -144,13 +144,13 @@ export default async function Overview() {
           {upcoming.length ? (
             <ul className="divide-y divide-line">
               {upcoming.map((c) => (
-                <li key={c.id} className="flex items-center gap-3 px-5 py-3.5">
+                <li key={c.id} className="relative flex items-center gap-3 px-4 py-3.5 active:bg-canvas sm:px-5">
                   <div className="grid w-12 shrink-0 place-items-center rounded-lg bg-canvas py-1.5 text-center">
                     <span className="text-[10px] font-medium uppercase text-muted">{fmtDate(c.nextRunAt, "EEE")}</span>
                     <span className="tabular text-sm font-semibold">{fmtDate(c.nextRunAt, "d")}</span>
                   </div>
                   <div className="min-w-0 flex-1">
-                    <Link href={`/dashboard/campaigns/${c.id}`} className="block truncate text-sm font-medium hover:underline">
+                    <Link href={`/dashboard/campaigns/${c.id}`} className="block truncate text-sm font-medium after:absolute after:inset-0 hover:underline">
                       {c.name}
                     </Link>
                     <p className="truncate text-xs text-muted">
@@ -173,7 +173,7 @@ export default async function Overview() {
         <CardHeader
           title="Latest messages"
           action={
-            <Link href="/dashboard/messages" className="text-xs font-medium text-brand-deep hover:underline">
+            <Link href="/dashboard/messages" className="-my-2 py-2 text-sm font-medium text-brand-deep hover:underline sm:text-xs">
               Open log
             </Link>
           }
@@ -181,7 +181,7 @@ export default async function Overview() {
         {recent.length ? (
           <ul className="divide-y divide-line">
             {recent.map((m) => (
-              <li key={m.id} className="flex items-center gap-4 px-5 py-3 text-sm">
+              <li key={m.id} className="flex items-center gap-3 px-4 py-3 text-sm sm:gap-4 sm:px-5">
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium">
                     {m.customer.name} <span className="font-normal text-muted">{formatPhone(m.customer.phone)}</span>

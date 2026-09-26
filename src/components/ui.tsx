@@ -3,12 +3,12 @@ import { cn } from "@/lib/cn";
 
 export function PageHeader({ title, description, actions }: { title: string; description?: ReactNode; actions?: ReactNode }) {
   return (
-    <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-ink">{title}</h1>
+    <div className="mb-5 flex flex-col gap-4 sm:mb-6 sm:flex-row sm:items-end sm:justify-between">
+      <div className="min-w-0">
+        <h1 className="truncate text-[1.6rem] font-semibold leading-tight tracking-tight text-ink sm:text-2xl">{title}</h1>
         {description && <p className="mt-1 max-w-2xl text-sm text-muted">{description}</p>}
       </div>
-      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+      {actions && <div className="grid auto-cols-fr grid-flow-col gap-2 sm:flex sm:flex-wrap sm:items-center">{actions}</div>}
     </div>
   );
 }
@@ -19,8 +19,8 @@ export function Card({ className, ...p }: ComponentProps<"div">) {
 
 export function CardHeader({ title, description, action }: { title: string; description?: string; action?: ReactNode }) {
   return (
-    <div className="flex items-start justify-between gap-4 border-b border-line px-5 py-4">
-      <div>
+    <div className="flex flex-col gap-3 border-b border-line px-4 py-4 sm:flex-row sm:items-start sm:justify-between sm:gap-4 sm:px-5">
+      <div className="min-w-0">
         <h2 className="text-sm font-semibold text-ink">{title}</h2>
         {description && <p className="mt-0.5 text-xs text-muted">{description}</p>}
       </div>
@@ -38,8 +38,9 @@ const variants = {
 
 export function buttonClass(variant: keyof typeof variants = "primary", size: "sm" | "md" = "md") {
   return cn(
-    "inline-flex items-center justify-center gap-2 rounded-lg font-medium transition active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/20",
-    size === "sm" ? "h-8 px-3 text-xs" : "h-10 px-4 text-sm",
+    "inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded-xl font-medium transition sm:rounded-lg active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/20",
+    // Phones get 40–44px targets; desktop keeps the denser sizes.
+    size === "sm" ? "h-10 px-3.5 text-sm sm:h-8 sm:px-3 sm:text-xs" : "h-11 px-4 text-[15px] sm:h-10 sm:text-sm",
     variants[variant],
   );
 }
@@ -118,12 +119,12 @@ export function EmptyState({ icon, title, children, action }: { icon: ReactNode;
 
 export function Stat({ label, value, sub, icon, accent }: { label: string; value: ReactNode; sub?: ReactNode; icon: ReactNode; accent?: string }) {
   return (
-    <Card className="p-5">
+    <Card className="p-4 sm:p-5">
       <div className="flex items-center justify-between">
         <p className="text-xs font-medium text-muted">{label}</p>
         <span className={cn("grid size-8 place-items-center rounded-lg", accent ?? "bg-brand-soft text-brand-deep")}>{icon}</span>
       </div>
-      <p className="tabular mt-3 text-3xl font-semibold tracking-tight">{value}</p>
+      <p className="tabular mt-2 text-2xl font-semibold tracking-tight sm:mt-3 sm:text-3xl">{value}</p>
       {sub && <p className="mt-1 text-xs text-muted">{sub}</p>}
     </Card>
   );

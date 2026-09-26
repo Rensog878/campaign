@@ -3,6 +3,7 @@
 import { Clock, Gauge, Loader2, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { MobileActionBar } from "@/components/mobile-action-bar";
 import { toastResult } from "@/components/toast";
 import { Button, Card, CardHeader, Label } from "@/components/ui";
 import { cn } from "@/lib/cn";
@@ -91,7 +92,7 @@ export function CampaignForm({
           <div className="space-y-5 p-5">
             <div className="inline-flex rounded-lg bg-canvas p-1">
               {(["WEEKLY", "ONCE"] as const).map((s) => (
-                <button key={s} type="button" onClick={() => set({ scheduleType: s })} className={cn("rounded-md px-4 py-1.5 text-xs font-medium transition", c.scheduleType === s ? "bg-white shadow-sm" : "text-muted")}>
+                <button key={s} type="button" onClick={() => set({ scheduleType: s })} className={cn("rounded-md px-4 py-2.5 text-sm font-medium transition sm:py-1.5 sm:text-xs", c.scheduleType === s ? "bg-white shadow-sm" : "text-muted")}>
                   {s === "WEEKLY" ? "Repeat weekly" : "Send once"}
                 </button>
               ))}
@@ -99,7 +100,7 @@ export function CampaignForm({
             {c.scheduleType === "WEEKLY" ? (
               <div>
                 <Label hint={`${c.daysOfWeek.length} per week`}>Days</Label>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex gap-1.5 sm:flex-wrap sm:gap-2">
                   {DAYS.map((d, i) => {
                     const on = c.daysOfWeek.includes(i);
                     return (
@@ -108,7 +109,7 @@ export function CampaignForm({
                         type="button"
                         aria-pressed={on}
                         onClick={() => set({ daysOfWeek: on ? c.daysOfWeek.filter((x) => x !== i) : [...c.daysOfWeek, i] })}
-                        className={cn("size-11 rounded-xl border text-xs font-medium transition", on ? "border-brand bg-brand text-white" : "border-line bg-white text-ink-2 hover:border-ink/30")}
+                        className={cn("h-11 min-w-0 flex-1 rounded-xl border text-xs font-medium transition active:scale-95 sm:flex-none sm:w-11", on ? "border-brand bg-brand text-white" : "border-line bg-white text-ink-2 hover:border-ink/30")}
                       >
                         {d}
                       </button>
@@ -132,7 +133,7 @@ export function CampaignForm({
         <Card>
           <CardHeader title="Pacing" description="Send in small batches so your number keeps a good quality rating with Meta." />
           <div className="space-y-5 p-5">
-            <div className="flex flex-wrap gap-2">
+            <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
               {PRESETS.map((p) => (
                 <button
                   key={p.label}
@@ -151,11 +152,11 @@ export function CampaignForm({
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <Label htmlFor="batch" hint="1–1,000">Customers per batch</Label>
-                <input id="batch" type="number" min={1} max={1000} className="field tabular" value={c.batchSize || ""} onChange={(e) => set({ batchSize: Number(e.target.value) })} />
+                <input id="batch" type="number" inputMode="numeric" min={1} max={1000} className="field tabular" value={c.batchSize || ""} onChange={(e) => set({ batchSize: Number(e.target.value) })} />
               </div>
               <div>
                 <Label htmlFor="interval" hint="minutes">Wait between batches</Label>
-                <input id="interval" type="number" min={1} max={1440} className="field tabular" value={c.intervalMinutes || ""} onChange={(e) => set({ intervalMinutes: Number(e.target.value) })} />
+                <input id="interval" type="number" inputMode="numeric" min={1} max={1440} className="field tabular" value={c.intervalMinutes || ""} onChange={(e) => set({ intervalMinutes: Number(e.target.value) })} />
               </div>
             </div>
           </div>
@@ -192,11 +193,22 @@ export function CampaignForm({
           <input type="checkbox" className="size-4 accent-brand" checked={c.active} onChange={(e) => set({ active: e.target.checked })} />
         </label>
 
-        <Button className="w-full" disabled={pending} onClick={save}>
-          {pending ? <Loader2 className="size-4 animate-spin" /> : id ? "Save changes" : "Create campaign"}
-        </Button>
+        <div className="hidden lg:block">
+          <Button className="w-full" disabled={pending} onClick={save}>
+            {pending ? <Loader2 className="size-4 animate-spin" /> : id ? "Save changes" : "Create campaign"}
+          </Button>
+        </div>
         {id && <p className="text-center text-xs text-muted">Pacing changes also apply to a run that is already sending, from its next batch.</p>}
       </div>
+      <MobileActionBar>
+        <div className="min-w-0 flex-1 leading-tight">
+          <p className="tabular truncate text-sm font-semibold">{size.toLocaleString("en-IN")} customers</p>
+          <p className="truncate text-xs text-muted">{batches} batch{batches === 1 ? "" : "es"} · done in {formatMinutes(mins)}</p>
+        </div>
+        <Button className="shrink-0 px-6" disabled={pending} onClick={save}>
+          {pending ? <Loader2 className="size-4 animate-spin" /> : id ? "Save" : "Create"}
+        </Button>
+      </MobileActionBar>
     </div>
   );
 }

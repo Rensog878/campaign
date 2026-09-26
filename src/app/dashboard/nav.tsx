@@ -6,12 +6,12 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/cn";
 
 export const NAV = [
-  { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
-  { href: "/dashboard/messages", label: "Message log", icon: MessagesSquare },
-  { href: "/dashboard/campaigns", label: "Campaigns", icon: CalendarClock },
-  { href: "/dashboard/templates", label: "Templates", icon: SquarePen },
-  { href: "/dashboard/customers", label: "Customers", icon: Users },
-  { href: "/dashboard/settings", label: "Settings", icon: Settings },
+  { href: "/dashboard", label: "Overview", short: "Home", icon: LayoutDashboard },
+  { href: "/dashboard/messages", label: "Message log", short: "Log", icon: MessagesSquare },
+  { href: "/dashboard/campaigns", label: "Campaigns", short: "Campaigns", icon: CalendarClock },
+  { href: "/dashboard/templates", label: "Templates", short: "Templates", icon: SquarePen },
+  { href: "/dashboard/customers", label: "Customers", short: "Customers", icon: Users },
+  { href: "/dashboard/settings", label: "Settings", short: "Settings", icon: Settings },
 ];
 
 function isActive(path: string, href: string) {
@@ -39,23 +39,46 @@ export function SideNav() {
   );
 }
 
-export function MobileNav() {
+/** Phone tab bar: the five everyday sections, within thumb reach. Settings lives in the top bar. */
+export function BottomNav() {
   const path = usePathname();
   return (
-    <nav className="-mx-4 flex gap-1 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
-      {NAV.map(({ href, label, icon: Icon }) => (
-        <Link
-          key={href}
-          href={href}
-          className={cn(
-            "flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs transition",
-            isActive(path, href) ? "bg-white/15 text-white" : "text-white/60",
-          )}
-        >
-          <Icon className="size-3.5" />
-          {label}
-        </Link>
-      ))}
+    <nav
+      aria-label="Main"
+      className="pb-safe fixed inset-x-0 bottom-0 z-30 border-t border-line bg-white/95 backdrop-blur-md lg:hidden"
+    >
+      <div className="mx-auto grid max-w-lg grid-cols-5">
+        {NAV.slice(0, 5).map(({ href, short, icon: Icon }) => {
+          const active = isActive(path, href);
+          return (
+            <Link
+              key={href}
+              href={href}
+              aria-current={active ? "page" : undefined}
+              className={cn("flex h-16 flex-col items-center justify-center gap-1 text-[11px] font-medium transition active:scale-95", active ? "text-brand-deep" : "text-muted")}
+            >
+              <span className={cn("grid h-7 w-12 place-items-center rounded-full transition", active && "bg-brand-soft")}>
+                <Icon className="size-[18px]" strokeWidth={active ? 2.4 : 2} />
+              </span>
+              {short}
+            </Link>
+          );
+        })}
+      </div>
     </nav>
+  );
+}
+
+export function SettingsLink() {
+  const path = usePathname();
+  const active = path.startsWith("/dashboard/settings");
+  return (
+    <Link
+      href="/dashboard/settings"
+      aria-label="Settings"
+      className={cn("grid size-10 place-items-center rounded-full transition active:scale-95", active ? "bg-white/15 text-white" : "text-white/70")}
+    >
+      <Settings className="size-5" />
+    </Link>
   );
 }
