@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "app.vercel.campaign_seven_ruddy.twa",
+        "sha256_cert_fingerprints": ["EE:87:DD:F9:F3:B9:61:AB:C6:D9:B7:C2:03:3A:4E:FD:36:BE:BF:FC:BA:EE:BC:40:FD:4C:07:07:74:2D:35:02"]
+      }
+    }]
