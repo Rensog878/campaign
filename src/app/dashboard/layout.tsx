@@ -18,7 +18,7 @@ export default async function DashboardLayout({ children }: LayoutProps<"/dashbo
   const live = !isSimulated(settings);
 
   return (
-    <div className="min-h-dvh lg:pl-64">
+    <div className="min-h-dvh overflow-x-clip lg:pl-64">
       <aside className="fixed inset-y-0 left-0 hidden w-64 flex-col bg-night px-4 py-6 lg:flex">
         <div className="mb-8 flex items-center gap-2.5 px-2">
           <span className="grid size-9 place-items-center rounded-xl bg-brand text-white"><MessageCircle className="size-5" /></span>

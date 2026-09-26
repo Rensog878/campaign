@@ -29,7 +29,7 @@ function Copyable({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <p className="mb-1 text-xs font-medium text-ink-2">{label}</p>
-      <code className="block overflow-x-auto whitespace-nowrap rounded-lg bg-canvas px-3 py-2 font-mono text-xs">{value}</code>
+      <code className="block select-all break-all rounded-lg bg-canvas px-3 py-2 font-mono text-xs leading-relaxed">{value}</code>
     </div>
   );
 }

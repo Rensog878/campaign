@@ -14,7 +14,7 @@ export function PageHeader({ title, description, actions }: { title: string; des
 }
 
 export function Card({ className, ...p }: ComponentProps<"div">) {
-  return <div className={cn("rounded-2xl border border-line bg-panel shadow-card", className)} {...p} />;
+  return <div className={cn("min-w-0 rounded-2xl border border-line bg-panel shadow-card", className)} {...p} />;
 }
 
 export function CardHeader({ title, description, action }: { title: string; description?: string; action?: ReactNode }) {
@@ -24,7 +24,7 @@ export function CardHeader({ title, description, action }: { title: string; desc
         <h2 className="text-sm font-semibold text-ink">{title}</h2>
         {description && <p className="mt-0.5 text-xs text-muted">{description}</p>}
       </div>
-      {action}
+      {action && <div className="shrink-0 self-start">{action}</div>}
     </div>
   );
 }
