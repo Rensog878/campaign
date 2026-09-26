@@ -4,13 +4,12 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { normalizePhone } from "@/lib/phone";
 import { requireUser } from "@/lib/session";
+import { deliver, getSettings, readiness, templateSendable } from "@/lib/provider";
 import {
   fromMetaComponents,
-  renderFor,
   toMetaComponents,
   validateDraft,
   type TemplateDraft,
-  type VarMap,
 } from "@/lib/template";
 import {
   createMetaTemplate,
@@ -19,14 +18,13 @@ import {
   listMetaTemplates,
   mapMetaStatus,
   MetaError,
-  sendTemplateMessage,
   uploadHeaderSample,
   waConfig,
 } from "@/lib/whatsapp";
 
 export type ActionResult = { ok: boolean; message?: string; errors?: string[]; id?: string };
 
-const errText = (e: unknown) => (e instanceof MetaError ? e.message : e instanceof Error ? e.message : "Something went wrong");
+const errText = (e: unknown) => (e instanceof MetaError || e instanceof Error ? e.message : "Something went wrong");
 
 function contentFields(d: TemplateDraft) {
   const auth = d.category === "AUTHENTICATION";
@@ -53,6 +51,33 @@ export async function saveTemplate(id: string | null, draft: TemplateDraft): Pro
   const errors = validateDraft(draft);
   if (errors.length) return { ok: false, errors };
   const { live } = waConfig();
+
+  // Local session: no Meta review. A template Meta had approved no longer matches, so it
+  // goes back to draft and is resubmitted the next time it's saved with Meta active.
+  if ((await getSettings()).provider === "LOCAL") {
+    if (id) {
+      const existing = await db.template.findUnique({ where: { id } });
+      if (!existing) return { ok: false, message: "Template not found." };
+      const merged = { ...draft, name: existing.name, language: existing.language, category: existing.category };
+      await db.template.update({
+        where: { id },
+        data: {
+          ...contentFields(merged),
+          ...(existing.metaId && { status: "DRAFT", statusReason: "Changed in local mode. Save it again with Meta active to resubmit." }),
+        },
+      });
+      revalidatePath("/dashboard/templates");
+      return { ok: true, id, message: "Saved. The local session sends the new version from the next batch." };
+    }
+    if (await db.template.findUnique({ where: { name_language: { name: draft.name, language: draft.language } } })) {
+      return { ok: false, errors: ["A template with this name and language already exists."] };
+    }
+    const created = await db.template.create({
+      data: { name: draft.name, language: draft.language, category: draft.category, ...contentFields(draft), status: "DRAFT" },
+    });
+    revalidatePath("/dashboard/templates");
+    return { ok: true, id: created.id, message: "Template saved. The local session can send it right away." };
+  }
 
   // Editing: Meta must accept the change first, so what we send always matches what Meta approved.
   if (id) {
@@ -163,27 +188,28 @@ export async function sendTestMessage(id: string, rawPhone: string): Promise<Act
   if (!phone) return { ok: false, message: "Enter a valid mobile number." };
   const t = await db.template.findUnique({ where: { id } });
   if (!t) return { ok: false, message: "Template not found." };
-  if (t.status !== "APPROVED") return { ok: false, message: "Only approved templates can be sent." };
   if (t.category === "AUTHENTICATION") return { ok: false, message: "Authentication templates are sent by your app's login flow, not from here." };
+  const settings = await getSettings();
+  if (!templateSendable(settings, t)) return { ok: false, message: "Only templates approved by Meta can be sent." };
+  const ready = await readiness(settings);
+  if (!ready.ok) return { ok: false, message: ready.reason };
 
   const customer =
     (await db.customer.findUnique({ where: { phone } })) ??
     (await db.customer.create({ data: { phone, name: "Test recipient", tags: ["test"] } }));
-  const r = renderFor({ ...t, headerText: t.headerText ?? "", footer: t.footer ?? "", variables: t.variables as VarMap }, customer);
-  const body = [r.header, r.body, r.footer].filter(Boolean).join("\n\n");
   try {
-    const res = await sendTemplateMessage({
-      to: phone, templateName: t.name, language: t.language, headerType: t.headerType,
-      headerMediaUrl: t.headerMediaUrl, headerParams: r.headerParams, bodyParams: r.bodyParams,
-    });
+    const res = await deliver(settings, t, customer);
     await db.message.create({
-      data: { customerId: customer.id, templateId: t.id, templateName: t.name, body, status: "SENT", waMessageId: res.id, simulated: res.simulated, sentAt: new Date() },
+      data: {
+        customerId: customer.id, templateId: t.id, templateName: t.name, body: res.text, status: "SENT",
+        waMessageId: res.id, simulated: res.simulated, provider: res.provider, sentAt: new Date(),
+      },
     });
     revalidatePath("/dashboard/messages");
     return { ok: true, message: res.simulated ? "Simulated send logged (demo mode)." : `Test sent to +${phone}.` };
   } catch (e) {
     await db.message.create({
-      data: { customerId: customer.id, templateId: t.id, templateName: t.name, body, status: "FAILED", error: errText(e), failedAt: new Date() },
+      data: { customerId: customer.id, templateId: t.id, templateName: t.name, status: "FAILED", provider: settings.provider, error: errText(e), failedAt: new Date() },
     });
     return { ok: false, message: errText(e) };
   }

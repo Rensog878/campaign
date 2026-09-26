@@ -45,6 +45,31 @@ npm run dev
    Subscribe to `messages` and `message_template_status_update`.
 6. In the portal: **Templates → Sync with Meta** to import existing templates.
 
+## Local session provider (WAHA)
+
+Besides Meta's Cloud API, the portal can send through a WhatsApp number linked by QR code, using a
+self-hosted [WAHA](https://waha.devlikeapro.com) server. Switch between the two in **Settings → Sending provider**.
+
+**Warning:** this is unofficial. Sending promotions this way breaks WhatsApp's terms, and the number can be
+banned. Use a dedicated number, keep batches small (e.g. 25 every 15 minutes), and only message customers
+who expect to hear from you.
+
+1. Get a small VPS (1 GB RAM is enough) with Docker, and point a domain such as `waha.yourdomain.com` at it.
+2. Copy `deploy/waha/` to the VPS, create `.env` from `.env.example`, then run `docker compose up -d`.
+   Caddy gets an HTTPS certificate automatically.
+3. In the portal: **Settings → Local session**, enter `https://waha.yourdomain.com`, the API key and the session
+   name `default`, then **Save**, **Link phone**, and scan the QR code from WhatsApp → Linked devices.
+4. Click **Local session (WAHA)** under Sending provider to make it active.
+5. Set cron-job.org to call the cron URL **every minute**. Local sends go one at a time with 1–3 second
+   gaps, so each call sends about 20–30 messages.
+
+How it behaves:
+- Templates don't need Meta approval. They're sent as formatted text (image headers as an image with a caption,
+  buttons as text lines).
+- If the phone goes offline or is unlinked, running campaigns pause ("Phone disconnected") and continue once it's
+  linked again. Nothing is marked failed.
+- Delivered and read receipts and STOP replies arrive through a webhook the portal sets up when you click Link phone.
+
 ## Good to know
 
 - Marketing messages cost money per message (charged by Meta), and Meta may limit how many marketing messages one person receives. Two per week is reasonable.

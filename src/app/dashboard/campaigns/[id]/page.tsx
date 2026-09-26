@@ -99,7 +99,7 @@ export default async function CampaignPage({ params }: PageProps<"/dashboard/cam
                       <td className="px-5 py-3 text-right">{fmtNumber(read)} <span className="text-xs text-muted">{pct(read, r.total)}%</span></td>
                       <td className="px-5 py-3 text-right text-rose-600">{fmtNumber(stat(r.id, "FAILED"))}</td>
                       <td className="px-5 py-3 text-right">
-                        {["RUNNING", "WAITING_TEMPLATE"].includes(r.status) ? (
+                        {["RUNNING", "WAITING_TEMPLATE", "WAITING_CONNECTION"].includes(r.status) ? (
                           <ActionButton action={cancelRun.bind(null, r.id)} variant="danger" confirm="Stop this run?">Stop</ActionButton>
                         ) : (
                           <Link href={`/dashboard/messages?campaign=${c.id}`} className="text-xs font-medium text-brand-deep hover:underline">Log</Link>

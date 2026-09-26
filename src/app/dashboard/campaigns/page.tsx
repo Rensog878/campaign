@@ -88,7 +88,7 @@ export default async function CampaignsPage() {
                     )}
                   </span>
                   <div className="flex items-center gap-2">
-                    {last && ["RUNNING", "WAITING_TEMPLATE"].includes(last.status) && <StatusBadge status={last.status} />}
+                    {last && ["RUNNING", "WAITING_TEMPLATE", "WAITING_CONNECTION"].includes(last.status) && <StatusBadge status={last.status} />}
                     <ActionButton action={toggleCampaign.bind(null, c.id, !c.active)}>{c.active ? "Pause" : "Resume"}</ActionButton>
                   </div>
                 </div>

@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { dispatch, startRun } from "@/lib/dispatcher";
 import { APP_TZ } from "@/lib/format";
+import { getSettings, templateSendable } from "@/lib/provider";
 import { computeNextRun } from "@/lib/schedule";
 import { requireUser } from "@/lib/session";
 import type { ActionResult } from "./templates";
@@ -91,8 +92,8 @@ export async function runCampaignNow(id: string): Promise<ActionResult> {
   await requireUser();
   const c = await db.campaign.findUnique({ where: { id }, include: { template: true } });
   if (!c) return { ok: false, message: "Campaign not found." };
-  if (c.template.status !== "APPROVED") return { ok: false, message: "The template isn't approved yet." };
-  const busy = await db.campaignRun.findFirst({ where: { campaignId: id, status: { in: ["RUNNING", "WAITING_TEMPLATE"] } } });
+  if (!templateSendable(await getSettings(), c.template)) return { ok: false, message: "The template isn't approved by Meta yet." };
+  const busy = await db.campaignRun.findFirst({ where: { campaignId: id, status: { in: ["RUNNING", "WAITING_TEMPLATE", "WAITING_CONNECTION"] } } });
   if (busy) return { ok: false, message: "This campaign is already sending. Wait for it to finish or stop it." };
   const run = await startRun(c, new Date());
   await dispatch();

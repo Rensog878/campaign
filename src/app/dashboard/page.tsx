@@ -20,7 +20,7 @@ export default async function Overview() {
     db.customer.count({ where: { optedOut: true } }),
     db.message.groupBy({ by: ["status"], where: { createdAt: { gte: weekAgo }, status: { notIn: ["QUEUED", "SKIPPED"] } }, _count: true }),
     db.campaignRun.findMany({
-      where: { status: { in: ["RUNNING", "WAITING_TEMPLATE"] } },
+      where: { status: { in: ["RUNNING", "WAITING_TEMPLATE", "WAITING_CONNECTION"] } },
       include: { campaign: true },
       orderBy: { startedAt: "desc" },
     }),

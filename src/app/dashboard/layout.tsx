@@ -1,17 +1,18 @@
 import { LogOut, MessageCircle } from "lucide-react";
 import { requireUser } from "@/lib/session";
-import { waConfig } from "@/lib/whatsapp";
+import { getSettings, isSimulated } from "@/lib/provider";
 import { logout } from "../login/actions";
 import { MobileNav, SideNav } from "./nav";
 
 export default async function DashboardLayout({ children }: LayoutProps<"/dashboard">) {
   const user = await requireUser();
-  const { live } = waConfig();
+  const settings = await getSettings();
+  const via = settings.provider === "LOCAL" ? "Local session" : "Meta Cloud API";
 
-  const mode = live ? (
-    <span className="flex items-center gap-2 text-xs text-emerald-300"><span className="size-2 animate-pulse rounded-full bg-emerald-400" />WhatsApp connected</span>
+  const mode = !isSimulated(settings) ? (
+    <span className="flex items-center gap-2 text-xs text-emerald-300"><span className="size-2 animate-pulse rounded-full bg-emerald-400" />Sending via {via}</span>
   ) : (
-    <span className="flex items-center gap-2 text-xs text-amber-300"><span className="size-2 rounded-full bg-amber-400" />Demo mode · sends are simulated</span>
+    <span className="flex items-center gap-2 text-xs text-amber-300"><span className="size-2 rounded-full bg-amber-400" />Demo mode · {via} not set up</span>
   );
 
   return (

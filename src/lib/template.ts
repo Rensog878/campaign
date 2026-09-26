@@ -101,6 +101,27 @@ export function renderFor(t: Renderable, c: CustomerLike, otp = "482913") {
   };
 }
 
+/**
+ * The same template as one plain WhatsApp message, for the local session provider,
+ * which can't send Meta templates or real buttons.
+ */
+export function toPlainText(
+  r: { header: string; body: string; footer: string },
+  buttons: TemplateButton[] = [],
+) {
+  const parts = [r.header && `*${r.header}*`, r.body, r.footer && `_${r.footer}_`];
+  const lines = buttons
+    .map((b) =>
+      b.type === "URL" ? `👉 ${b.text}: ${b.url}`
+      : b.type === "PHONE_NUMBER" ? `📞 ${b.text}: ${b.phone}`
+      : b.type === "QUICK_REPLY" ? `↩️ Reply "${b.text}"`
+      : "",
+    )
+    .filter(Boolean);
+  if (lines.length) parts.push(lines.join("\n"));
+  return parts.filter(Boolean).join("\n\n");
+}
+
 export function validateDraft(t: TemplateDraft): string[] {
   const errors: string[] = [];
   if (!/^[a-z0-9_]{1,512}$/.test(t.name)) errors.push("Name can only use lowercase letters, numbers and underscores.");

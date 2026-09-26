@@ -1,0 +1,33 @@
+# WAHA (WhatsApp HTTP API) behind Caddy for automatic HTTPS.
+# On the VPS:  cp .env.example .env  →  edit it  →  docker compose up -d
+services:
+  waha:
+    image: devlikeapro/waha:latest
+    restart: unless-stopped
+    environment:
+      WAHA_API_KEY: ${WAHA_API_KEY}
+      WHATSAPP_API_KEY: ${WAHA_API_KEY} # older WAHA versions read this name
+      WHATSAPP_DEFAULT_ENGINE: NOWEB # light engine, no browser needed
+      WHATSAPP_RESTART_ALL_SESSIONS: "true" # relink automatically after a reboot
+      WAHA_PRINT_QR: "false"
+    volumes:
+      - ./sessions:/app/.sessions # keeps the linked phone across restarts
+    expose:
+      - "3000"
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      WAHA_DOMAIN: ${WAHA_DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    depends_on:
+      - waha
+
+volumes:
+  caddy_data:

@@ -1,9 +1,11 @@
 import { CheckCircle2, Circle } from "lucide-react";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import { Card, CardHeader, PageHeader } from "@/components/ui";
+import { Badge, Card, CardHeader, PageHeader } from "@/components/ui";
 import { cn } from "@/lib/cn";
+import { getSettings, wahaConfig } from "@/lib/provider";
 import { waConfig } from "@/lib/whatsapp";
+import { LocalSessionPanel, ProviderSwitch } from "./provider-panel";
 import { PasswordForm } from "./password-form";
 
 export const metadata: Metadata = { title: "Settings" };
@@ -32,15 +34,27 @@ function Copyable({ label, value }: { label: string; value: string }) {
 
 export default async function SettingsPage() {
   const cfg = waConfig();
+  const settings = await getSettings();
   const h = await headers();
   const origin = `${h.get("x-forwarded-proto") ?? "https"}://${h.get("host")}`;
 
   return (
     <>
       <PageHeader title="Settings" description="WhatsApp connection, scheduler and your account." />
-      <div className="grid gap-6 lg:grid-cols-2">
+      <ProviderSwitch provider={settings.provider} metaLive={cfg.live} localReady={!!wahaConfig(settings)} />
+      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+        <LocalSessionPanel
+          url={settings.wahaUrl ?? ""}
+          hasKey={!!settings.wahaApiKey}
+          session={settings.wahaSession}
+          active={settings.provider === "LOCAL"}
+        />
         <Card>
-          <CardHeader title="WhatsApp Cloud API" description={cfg.live ? "Connected. Messages are sent through Meta." : "Not connected. The portal is in demo mode and sends are simulated."} />
+          <CardHeader
+            title="Meta Cloud API"
+            description={cfg.live ? "Configured. Set these in Vercel → Environment Variables." : "Not configured. Add these in Vercel → Environment Variables, then redeploy."}
+            action={settings.provider === "META" ? <Badge tone="green" dot>Active</Badge> : undefined}
+          />
           <ul className="divide-y divide-line">
             <Check ok={!!cfg.token} label="Access token" hint="WHATSAPP_TOKEN: a permanent System User token from Meta Business settings." />
             <Check ok={!!cfg.phoneNumberId} label="Phone number ID" hint="WHATSAPP_PHONE_NUMBER_ID from WhatsApp Manager → API setup." />
@@ -54,9 +68,9 @@ export default async function SettingsPage() {
           </div>
         </Card>
 
-        <div className="space-y-6">
+        <div className="space-y-6 lg:col-span-2 lg:grid lg:grid-cols-2 lg:gap-6 lg:space-y-0">
           <Card>
-            <CardHeader title="Scheduler" description="Something must call this URL every 5 minutes to start campaigns and send batches." />
+            <CardHeader title="Scheduler" description="Something must call this URL every 5 minutes (every minute with the local session) to start campaigns and send batches." />
             <div className="space-y-3 p-5">
               <Copyable label="Cron URL" value={`${origin}/api/cron?key=•••CRON_SECRET•••`} />
               <p className="text-xs text-muted">

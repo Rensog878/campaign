@@ -46,7 +46,7 @@ export default async function MessagesPage({ searchParams }: PageProps<"/dashboa
     <>
       <PageHeader
         title="Message log"
-        description="Every WhatsApp message sent to your customers, with live delivery status from Meta."
+        description="Every WhatsApp message sent to your customers, with live delivery and read status."
         actions={
           <a href={`/api/messages/export?${exportQs}`} className={buttonClass("secondary")}>
             <Download className="size-4" /> Export CSV
@@ -124,7 +124,10 @@ export default async function MessagesPage({ searchParams }: PageProps<"/dashboa
                     </td>
                     <td className="px-4 py-3 text-xs text-ink-2">
                       {m.run?.campaign.name ?? <Badge>Test send</Badge>}
-                      {m.simulated && <span className="ml-1.5"><Badge tone="amber">Demo</Badge></span>}
+                      <div className="mt-1 flex gap-1">
+                        {m.status !== "QUEUED" && <Badge tone={m.provider === "LOCAL" ? "violet" : "blue"}>{m.provider === "LOCAL" ? "Local" : "Meta"}</Badge>}
+                        {m.simulated && <Badge tone="amber">Demo</Badge>}
+                      </div>
                     </td>
                     <td className="px-4 py-3"><StatusBadge status={m.status} /></td>
                     <td className="tabular px-4 py-3 text-right text-xs text-muted">

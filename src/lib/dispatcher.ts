@@ -2,11 +2,12 @@ import "server-only";
 import type { Campaign } from "@prisma/client";
 import { db } from "./db";
 import { computeNextRun } from "./schedule";
-import { renderFor, type TemplateDraft, type VarMap } from "./template";
-import { MetaError, sendTemplateMessage } from "./whatsapp";
+import { deliver, getSettings, isSimulated, readiness, templateSendable } from "./provider";
+import { WahaError } from "./waha";
 
 const TIME_BUDGET_MS = 50_000; // stay under Vercel's function limit
 const CONCURRENCY = 10;
+const LOCAL_GAP_MS = [1_000, 3_000]; // random pause between local-session sends
 
 /** Creates a run and queues one message per eligible customer. */
 export async function startRun(campaign: Campaign & { template: { name: string } }, scheduledFor: Date) {
@@ -56,8 +57,18 @@ async function startDueCampaigns(now: Date) {
   return started;
 }
 
-async function inPool<T>(items: T[], size: number, fn: (item: T) => Promise<void>) {
-  for (let i = 0; i < items.length; i += size) await Promise.all(items.slice(i, i + size).map(fn));
+async function inPool<T>(items: T[], size: number, fn: (item: T) => Promise<boolean | void>) {
+  for (let i = 0; i < items.length; i += size) {
+    const results = await Promise.all(items.slice(i, i + size).map(fn));
+    if (results.includes(false)) return; // a worker asked to stop the batch
+  }
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** Errors that mean the local session is offline, not that this one number failed. */
+function sessionDown(e: unknown) {
+  return e instanceof WahaError && (!e.status || e.status === 422 || e.status >= 500);
 }
 
 async function processRun(runId: string, now: Date, deadline: number) {
@@ -74,13 +85,18 @@ async function processRun(runId: string, now: Date, deadline: number) {
   });
   if (!claimed.count) return { sent: 0, failed: 0 };
 
+  const pause = (status: "WAITING_TEMPLATE" | "WAITING_CONNECTION", minutes: number) =>
+    db.campaignRun.update({ where: { id: run.id }, data: { status, nextBatchAt: new Date(Date.now() + minutes * 60_000) } });
+
   // Always the latest saved version, so template edits reach the next batch.
   const t = campaign.template;
-  if (t.status !== "APPROVED") {
-    await db.campaignRun.update({
-      where: { id: run.id },
-      data: { status: "WAITING_TEMPLATE", nextBatchAt: new Date(now.getTime() + 5 * 60_000) },
-    });
+  const settings = await getSettings();
+  if (!templateSendable(settings, t)) {
+    await pause("WAITING_TEMPLATE", 5);
+    return { sent: 0, failed: 0 };
+  }
+  if (!(await readiness(settings)).ok) {
+    await pause("WAITING_CONNECTION", 2);
     return { sent: 0, failed: 0 };
   }
   if (run.status !== "RUNNING") await db.campaignRun.update({ where: { id: run.id }, data: { status: "RUNNING" } });
@@ -92,51 +108,59 @@ async function processRun(runId: string, now: Date, deadline: number) {
     orderBy: { id: "asc" },
   });
 
-  const draft = { ...t, headerText: t.headerText ?? "", footer: t.footer ?? "", variables: t.variables as VarMap } as Pick<
-    TemplateDraft,
-    "category" | "headerType" | "headerText" | "body" | "footer" | "variables" | "codeExpiryMins" | "securityNote"
-  >;
+  // The local session sends one by one with human-like gaps; Meta can take parallel sends.
+  const local = settings.provider === "LOCAL" && !isSimulated(settings);
   let sent = 0;
   let failed = 0;
+  let outOfTime = false;
+  let disconnected = false;
 
-  await inPool(batch, CONCURRENCY, async (m) => {
-    if (Date.now() > deadline) return; // stays QUEUED for the next call
+  await inPool(batch, local ? 1 : CONCURRENCY, async (m) => {
+    if (Date.now() > deadline) {
+      outOfTime = true; // stays QUEUED for the next call
+      return false;
+    }
     if (m.customer.optedOut) {
       await db.message.update({ where: { id: m.id }, data: { status: "SKIPPED", error: "Customer opted out" } });
       return;
     }
-    const r = renderFor(draft, m.customer);
-    const text = [r.header, r.body, r.footer].filter(Boolean).join("\n\n");
     try {
-      const res = await sendTemplateMessage({
-        to: m.customer.phone,
-        templateName: t.name,
-        language: t.language,
-        headerType: t.headerType,
-        headerMediaUrl: t.headerMediaUrl,
-        headerParams: r.headerParams,
-        bodyParams: r.bodyParams,
-      });
+      const res = await deliver(settings, t, m.customer);
       await db.message.update({
         where: { id: m.id },
         data: {
           status: "SENT",
           waMessageId: res.id,
           simulated: res.simulated,
-          body: text,
+          provider: res.provider,
+          body: res.text,
           templateName: t.name,
           sentAt: new Date(),
         },
       });
       sent++;
     } catch (e) {
+      if (sessionDown(e)) {
+        disconnected = true;
+        return false;
+      }
       await db.message.update({
         where: { id: m.id },
-        data: { status: "FAILED", error: e instanceof MetaError ? e.message : String(e), body: text, failedAt: new Date() },
+        data: {
+          status: "FAILED",
+          provider: settings.provider,
+          error: e instanceof Error ? e.message : String(e),
+          failedAt: new Date(),
+        },
       });
       failed++;
     }
+    if (local) await sleep(LOCAL_GAP_MS[0] + Math.random() * (LOCAL_GAP_MS[1] - LOCAL_GAP_MS[0]));
   });
+
+  if (disconnected) await pause("WAITING_CONNECTION", 2);
+  // Finish the rest of this batch on the next scheduler call instead of waiting a full interval.
+  else if (outOfTime) await db.campaignRun.update({ where: { id: run.id }, data: { nextBatchAt: new Date() } });
 
   const left = await db.message.count({ where: { runId: run.id, status: "QUEUED" } });
   if (!left) await db.campaignRun.update({ where: { id: run.id }, data: { status: "COMPLETED", completedAt: new Date() } });
@@ -151,7 +175,7 @@ export async function dispatch() {
 
   const campaignsStarted = await startDueCampaigns(now);
   const runs = await db.campaignRun.findMany({
-    where: { status: { in: ["RUNNING", "WAITING_TEMPLATE"] }, nextBatchAt: { lte: now } },
+    where: { status: { in: ["RUNNING", "WAITING_TEMPLATE", "WAITING_CONNECTION"] }, nextBatchAt: { lte: now } },
     select: { id: true },
     orderBy: { nextBatchAt: "asc" },
     take: 20,

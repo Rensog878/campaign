@@ -8,6 +8,21 @@ datasource db {
   directUrl = env("DATABASE_URL_UNPOOLED")
 }
 
+enum Provider {
+  META
+  LOCAL
+}
+
+/// Single row (id = 1) holding portal-wide settings.
+model Setting {
+  id          Int      @id @default(1)
+  provider    Provider @default(META)
+  wahaUrl     String?
+  wahaApiKey  String?
+  wahaSession String   @default("default")
+  updatedAt   DateTime @updatedAt
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
@@ -107,6 +122,7 @@ model Campaign {
 enum RunStatus {
   RUNNING
   WAITING_TEMPLATE
+  WAITING_CONNECTION
   COMPLETED
   CANCELLED
 }
@@ -150,6 +166,7 @@ model Message {
   waMessageId  String?       @unique
   error        String?
   simulated    Boolean       @default(false)
+  provider     Provider      @default(META)
   createdAt    DateTime      @default(now())
   sentAt       DateTime?
   deliveredAt  DateTime?
