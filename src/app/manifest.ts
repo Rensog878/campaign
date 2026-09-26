@@ -3,11 +3,11 @@ import type { MetadataRoute } from "next";
 // Makes the portal installable, and is what PWABuilder reads to build the Android app.
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    id: "/dashboard",
+    id: "/",
     name: "WhatsApp Campaign Portal",
     short_name: "Campaigns",
     description: "Schedule WhatsApp campaigns, manage templates and track every message.",
-    start_url: "/dashboard",
+    start_url: "/login", // signed-in users are forwarded to the dashboard
     scope: "/",
     display: "standalone",
     orientation: "portrait",
